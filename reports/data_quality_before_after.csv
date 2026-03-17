@@ -1,0 +1,10 @@
+metric,before,after,delta
+Total rows,55500,54966,-534.0
+Exact duplicates,534,0,
+Total columns,15,31,16.0
+Names not Title Case,55467,0,-55467.0
+Hospitals ending with comma,4776,0,-4776.0
+Negative billing amounts,108,106,0.0
+Low billing (|<$100|),40,40,0.0
+Max billing decimal places,15,2,
+Doctors with embedded professional titles,841,0,-841.0

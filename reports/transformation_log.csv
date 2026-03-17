@@ -1,0 +1,26 @@
+rule,column,rows_affected,detail,criteria,residual_risk
+R1_DEDUP,ALL,534,"Removed exact duplicates: 55,500 -> 54,966 rows",Exact match on all 15 columns,"5,500 near-duplicates remain; may be legitimate re-admissions"
+R2_PK,admission_id,54966,Surrogate key generated (1..N after dedup),No natural PK exists in dataset,Key regenerates on re-run; not stable across exports
+R3_NAME,Name,54933,Normalized to Title Case,99.94% had erratic capitalization,Names remain high-cardinality (49K+); not useful for grouping
+R3_PREFIX,name_prefix,1107,"Extracted 1107 prefixes (Mr., Dr., etc.)",2% of records had embedded titles,
+R3_SUFFIX,name_suffix,206,"Extracted 206 suffixes (Jr., Sr., etc.)",,
+R4_DOCTOR,Doctor,2192,Title Case + removed titles/suffixes,"2.25% not Title Case; 1,124 prefixes, 982 suffixes",Cardinality ~40K; doctor grouping only useful for top-N queries
+R4_TITLE,doctor_title,974,"Extracted 974 professional titles (MD, PhD, DVM, etc.)",Preserves clinical credential info from diagnosis,
+R5_HOSPITAL,Hospital,27597,"Removed commas/leading-trailing 'and', Title Case","42% malformed: commas, 'and' artifacts from faker generation",Cardinality still ~39K; synthetic names cannot be merged without master list
+R6_BILLING,Billing Amount,54966,Rounded to 2 decimals,Up to 15 decimal digits detected in diagnosis,None
+R7_NEG_BILLING,is_billing_negative,106,Flagged negative amounts; rows preserved for audit trail,108 records: may be adjustments/refunds — no justification column exists,"If errors (not refunds), they pollute totals unless filtered"
+R8_LOW_BILLING,is_billing_low,40,Flagged amounts |<$100| for analyst review,"40 amounts anomalously low vs mean $25,539; statistical outliers",May be generation artifacts; conserved for transparency
+R9_DATE,Date of Admission,0,NaT values in admission dates,Defensive check; diagnosis found 0 NaT,
+R9_DATE,Discharge Date,0,NaT values in discharge dates,,
+R9_COHERENCE,dates,0,Incoherent date pairs (discharge < admission),Diagnosis confirmed 0 violations; rule serves as safeguard,None currently
+R10_WHITESPACE,ALL_STRING,0,Trim + collapse multi-spaces,Defensive; diagnosis found 0 issues but standard practice for DB load,None
+D1_STAY,stay_duration_days,54966,Discharge - Admission in days (range 1-30 confirmed),,
+D2_AGE_GROUP,age_group,54966,6 bands: 13-17 (pediatric) through 76-89,,
+D3_PEDIATRIC,is_pediatric,116,Flagged 116 patients aged < 18,Diagnosis found 116 pediatric patients needing differentiated analysis,
+D4_BILLING_RANGE,billing_range,54966,Quartile-based bands (computed on positive amounts only),,
+D5_ADM_MONTH,admission_month,54966,YYYY-MM for time series,,
+D6_ADM_YEAR,admission_year,54966,Year extraction,,
+D7_ADM_QUARTER,admission_quarter,54966,Quarter extraction (1-4),,
+D8_ABNORMAL,abnormal_test_flag,18437,True where Test Results == Abnormal,,
+D9_LONG_STAY,is_long_stay,12780,stay_duration_days > 23 (P75),,
+D10_NEG_OUTCOME,negative_outcome_flag,38,Abnormal test AND negative billing (compound risk flag),,

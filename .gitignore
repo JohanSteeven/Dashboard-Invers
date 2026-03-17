@@ -1,0 +1,66 @@
+# ─── Credenciales y configuración local ───────────────────────────────────────
+.env
+*.env.local
+.env.*
+!.env.example
+
+# ─── Entorno virtual Python ───────────────────────────────────────────────────
+.venv/
+.venv-*/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# ─── Jupyter Notebooks ────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Docker volúmenes locales ─────────────────────────────────────────────────
+postgres_data/
+n8n_data/
+
+# ─── IDEs y editores ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs y outputs temporales ────────────────────────────────────────────────
+*.log
+logs/
+output/
+*.tmp
+*.temp
+
+# ─── Archivos de sistema ──────────────────────────────────────────────────────
+*.bak
+*.backup
+*.orig
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ─── Archivos grandes (descomentar si el dataset es muy grande) ───────────────
+# data/raw/
+# data/processed/
+
+# ─── Secretos y certificados ──────────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+secrets/
+credentials/

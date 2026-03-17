@@ -1,0 +1,33 @@
+column,value,count,pct
+Gender,Male,27774,50.04
+Gender,Female,27726,49.96
+Blood Type,A-,6969,12.56
+Blood Type,A+,6956,12.53
+Blood Type,AB+,6947,12.52
+Blood Type,AB-,6945,12.51
+Blood Type,B+,6945,12.51
+Blood Type,B-,6944,12.51
+Blood Type,O+,6917,12.46
+Blood Type,O-,6877,12.39
+Medical Condition,Arthritis,9308,16.77
+Medical Condition,Diabetes,9304,16.76
+Medical Condition,Hypertension,9245,16.66
+Medical Condition,Obesity,9231,16.63
+Medical Condition,Cancer,9227,16.63
+Medical Condition,Asthma,9185,16.55
+Insurance Provider,Cigna,11249,20.27
+Insurance Provider,Medicare,11154,20.1
+Insurance Provider,UnitedHealthcare,11125,20.05
+Insurance Provider,Blue Cross,11059,19.93
+Insurance Provider,Aetna,10913,19.66
+Admission Type,Elective,18655,33.61
+Admission Type,Urgent,18576,33.47
+Admission Type,Emergency,18269,32.92
+Medication,Lipitor,11140,20.07
+Medication,Ibuprofen,11127,20.05
+Medication,Aspirin,11094,19.99
+Medication,Paracetamol,11071,19.95
+Medication,Penicillin,11068,19.94
+Test Results,Abnormal,18627,33.56
+Test Results,Normal,18517,33.36
+Test Results,Inconclusive,18356,33.07

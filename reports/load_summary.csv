@@ -1,0 +1,8 @@
+table,rows_loaded,status,detail
+dim_date,1857,OK,2019-05-08 to 2024-06-06 (1857 days)
+dim_medical_condition,6,OK,
+dim_admission_type,3,OK,
+dim_insurance,5,OK,
+dim_medication,5,OK,
+dim_test_result,3,OK,
+fact_admissions,54966,OK,

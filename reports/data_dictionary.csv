@@ -1,0 +1,16 @@
+column,dtype_inferred,unique_values,null_count,role,sample_values
+Name,str,49992,0,High-cardinality attribute,"Bobby JacksOn, LesLie TErRy, DaNnY sMitH, andrEw waTtS, adrIENNE bEll"
+Age,int64,77,0,Metric,"min=13, max=89"
+Gender,str,2,0,Dimension,"Male, Female"
+Blood Type,str,8,0,Dimension,"B-, A+, A-, O+, AB+"
+Medical Condition,str,6,0,Dimension,"Cancer, Obesity, Diabetes, Asthma, Hypertension"
+Date of Admission,datetime64[us],1827,0,Temporal dimension,2019-05-08 00:00:00 to 2024-05-07 00:00:00
+Doctor,str,40341,0,High-cardinality attribute,"Matthew Smith, Samantha Davies, Tiffany Mitchell, Kevin Wells, Kathleen Hanna"
+Hospital,str,39876,0,High-cardinality attribute,"Sons and Miller, Kim Inc, Cook PLC, Hernandez Rogers and Vang,, White-White"
+Insurance Provider,str,5,0,Dimension,"Blue Cross, Medicare, Aetna, UnitedHealthcare, Cigna"
+Billing Amount,float64,50000,0,Metric,"min=-2008.4921398591305, max=52764.276736469175"
+Room Number,int64,400,0,Metric,"min=101, max=500"
+Admission Type,str,3,0,Dimension,"Urgent, Emergency, Elective"
+Discharge Date,datetime64[us],1856,0,Temporal dimension,2019-05-09 00:00:00 to 2024-06-06 00:00:00
+Medication,str,5,0,Dimension,"Paracetamol, Ibuprofen, Aspirin, Penicillin, Lipitor"
+Test Results,str,3,0,Dimension,"Normal, Inconclusive, Abnormal"

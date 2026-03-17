@@ -1,0 +1,17 @@
+column,source_columns,dtype,logic,dashboard_use
+admission_id,None (generated),int64,Sequential integer 1..N assigned after deduplication,Primary key for joins and drill-down
+stay_duration_days,"Discharge Date, Date of Admission",int64,(Discharge Date - Date of Admission).days,KPI average LOS; histogram; segmentation by medical condition
+age_group,Age,category,"Bins: 13-17 (pediatric), 18-30, 31-45, 46-60, 61-75, 76-89",Age-band bar charts and cross-filters
+is_pediatric,Age,bool,True where Age < 18 (116 patients per diagnosis),Pediatric segment filter; differentiated analysis per diagnostic recommendation
+billing_range,Billing Amount,category,"Quartile-based on positive amounts: Low, Medium, High, Very High",Revenue tier segmentation; cost distribution analysis (P5)
+admission_month,Date of Admission,str (YYYY-MM),Period extraction to_period('M'),Monthly time-series line charts (P1)
+admission_year,Date of Admission,int64,Year extraction from Date of Admission,Year-over-year comparisons; yearly filters
+admission_quarter,Date of Admission,int64,Quarter extraction (1-4) from Date of Admission,Quarterly aggregation; aligns with proposed dim_date schema
+abnormal_test_flag,Test Results,bool,True where Test Results == 'Abnormal',Abnormal rate KPI (P4); outcome analysis filters
+is_long_stay,stay_duration_days,bool,True where stay_duration_days > P75 (75th percentile),Resource utilization analysis; long-stay rate KPI
+negative_outcome_flag,"abnormal_test_flag, is_billing_negative",bool,True where BOTH abnormal test AND negative billing (compound risk),Adverse event indicator; compound risk segmentation
+is_billing_negative,Billing Amount,bool,True where Billing Amount < 0 (108 rows per diagnosis),Filter toggle: exclude from revenue or isolate refunds/adjustments
+is_billing_low,Billing Amount,bool,True where |Billing Amount| < $100 (40 rows per diagnosis),Anomaly filter; billing distribution outlier analysis
+doctor_title,Doctor,str (nullable),"Extracted professional suffix (MD, PhD, DVM, Jr., Sr.) before cleaning",Credential analysis; doctor segmentation by qualification
+name_prefix,Name,str (nullable),"Extracted prefix (Mr., Dr., Mrs., etc.) before cleaning",Optional demographic enrichment
+name_suffix,Name,str (nullable),"Extracted suffix (Jr., II, III) before cleaning",Optional demographic enrichment

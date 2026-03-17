@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-03-17T02:56:04.856596",
+  "source_file": "data/raw/healthcare_dataset.csv",
+  "structural_overview": {
+    "rows": 55500,
+    "columns": 15,
+    "memory_mb": 34.54,
+    "column_types": {
+      "Name": "str",
+      "Age": "int64",
+      "Gender": "str",
+      "Blood Type": "str",
+      "Medical Condition": "str",
+      "Date of Admission": "datetime64[us]",
+      "Doctor": "str",
+      "Hospital": "str",
+      "Insurance Provider": "str",
+      "Billing Amount": "float64",
+      "Room Number": "int64",
+      "Admission Type": "str",
+      "Discharge Date": "datetime64[us]",
+      "Medication": "str",
+      "Test Results": "str"
+    }
+  },
+  "duplicate_analysis": {
+    "exact_duplicates": 534,
+    "exact_pct": 0.96,
+    "suspicious_near_duplicates": 5500,
+    "rows_after_dedup": 54966
+  },
+  "date_analysis": {
+    "Date of Admission": {
+      "nat_count": 0,
+      "min": "2019-05-08",
+      "max": "2024-05-07",
+      "unique_dates": 1827
+    },
+    "Discharge Date": {
+      "nat_count": 0,
+      "min": "2019-05-09",
+      "max": "2024-06-06",
+      "unique_dates": 1856
+    },
+    "discharge_before_admission": 0,
+    "length_of_stay": {
+      "min": 1,
+      "max": 30,
+      "mean": 15.51,
+      "zero_day_stays": 0
+    }
+  },
+  "text_quality": {
+    "Name": {
+      "total": 55500,
+      "leading_trailing_spaces": 0,
+      "multiple_spaces": 0,
+      "not_title_case": 55467,
+      "not_title_case_pct": 99.94,
+      "with_prefix": 216
+    },
+    "Doctor": {
+      "total": 55500,
+      "leading_trailing_spaces": 0,
+      "multiple_spaces": 0,
+      "not_title_case": 1246,
+      "not_title_case_pct": 2.25,
+      "with_suffix": 982,
+      "with_prefix": 1124
+    },
+    "Hospital": {
+      "total": 55500,
+      "leading_trailing_spaces": 0,
+      "multiple_spaces": 0,
+      "not_title_case": 27859,
+      "not_title_case_pct": 50.2,
+      "contains_comma": 18635,
+      "starts_with_and": 5749,
+      "ends_with_and": 5602,
+      "ends_with_comma": 4776
+    }
+  },
+  "quality_issues": [
+    {
+      "priority": 1,
+      "severity": "HIGH",
+      "issue": "Exact duplicate rows",
+      "detail": "534 rows (0.96%)",
+      "action": "Remove exact duplicates"
+    },
+    {
+      "priority": 2,
+      "severity": "HIGH",
+      "issue": "No natural primary key",
+      "detail": "No column or combination guarantees uniqueness",
+      "action": "Generate surrogate key (admission_id)"
+    },
+    {
+      "priority": 3,
+      "severity": "OBSERVATION",
+      "issue": "Zero nulls in all columns",
+      "detail": "Suspiciously clean for a 55K-row dataset — consistent with synthetic data",
+      "action": "Document as synthetic data indicator"
+    },
+    {
+      "priority": 4,
+      "severity": "MEDIUM",
+      "issue": "Erratic capitalization in patient names",
+      "detail": "55467 names (99.94%)",
+      "action": "Normalize to Title Case, remove prefixes"
+    },
+    {
+      "priority": 5,
+      "severity": "MEDIUM",
+      "issue": "Negative billing amounts",
+      "detail": "108 records with negative billing",
+      "action": "Flag with is_billing_negative; exclude from revenue metrics"
+    },
+    {
+      "priority": 6,
+      "severity": "MEDIUM",
+      "issue": "Malformed hospital names",
+      "detail": "18635 with commas, 5749 starting with 'and'",
+      "action": "Clean trailing commas, leading/trailing 'and'"
+    },
+    {
+      "priority": 7,
+      "severity": "LOW",
+      "issue": "Excessive decimal precision in Billing Amount",
+      "detail": "Up to 15 decimals in billing values",
+      "action": "Round to 2 decimals"
+    },
+    {
+      "priority": 9,
+      "severity": "OBSERVATION",
+      "issue": "Perfectly uniform distributions in all categorical columns",
+      "detail": "Consistent with synthetically generated data",
+      "action": "Document; comparative analysis between categories will not yield significant differences"
+    }
+  ]
+}

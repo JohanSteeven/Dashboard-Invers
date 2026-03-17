@@ -1,0 +1,160 @@
+{
+  "name": "Healthcare ETL Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Dispara el pipeline manualmente con un click. Puede cambiarse a Schedule Trigger para ejecución periódica."
+    },
+    {
+      "parameters": {
+        "url": "http://pipeline-api:8080/health",
+        "method": "GET",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Verificar API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://pipeline-api:8080/phase1",
+        "method": "GET",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Fase 1 — Exploración EDA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 300],
+      "notes": "Ejecuta phase1_explore.py. Genera diagnóstico de calidad y reportes EDA en reports/."
+    },
+    {
+      "parameters": {
+        "url": "http://pipeline-api:8080/phase2",
+        "method": "GET",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Fase 2 — Limpieza y Transformación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [960, 300],
+      "notes": "Ejecuta phase2_transform.py. Aplica 10 reglas de limpieza y genera healthcare_clean.csv."
+    },
+    {
+      "parameters": {
+        "url": "http://pipeline-api:8080/phase3",
+        "method": "GET",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Fase 3 — Carga a PostgreSQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300],
+      "notes": "Ejecuta phase3_load.py. Carga el star schema en PostgreSQL con 7 validaciones post-carga."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar que las 3 fases terminaron correctamente\nconst results = $input.all();\nconst lastResult = results[results.length - 1];\nconst body = lastResult.json;\n\nif (body.status !== 'success') {\n  throw new Error('Pipeline falló: ' + JSON.stringify(body.error));\n}\n\nconst summary = {\n  pipeline_status: 'COMPLETADO',\n  phases_executed: body.phases_executed || ['phase3'],\n  timestamp: new Date().toISOString(),\n  message: 'Pipeline ETL ejecutado exitosamente.'\n};\n\nconsole.log('=== PIPELINE COMPLETADO ===');\nconsole.log(JSON.stringify(summary, null, 2));\n\nreturn [{ json: summary }];",
+        "language": "javaScript"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "name": "Resumen de Ejecución",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300],
+      "notes": "Verifica el resultado del pipeline y genera un resumen de ejecución."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Verificar API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar API": {
+      "main": [
+        [
+          {
+            "node": "Fase 1 — Exploración EDA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fase 1 — Exploración EDA": {
+      "main": [
+        [
+          {
+            "node": "Fase 2 — Limpieza y Transformación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fase 2 — Limpieza y Transformación": {
+      "main": [
+        [
+          {
+            "node": "Fase 3 — Carga a PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fase 3 — Carga a PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Resumen de Ejecución",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/Guayaquil",
+    "errorWorkflow": "",
+    "saveManualExecutions": true,
+    "executionOrder": "v1"
+  },
+  "id": "healthcare-etl-pipeline-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "healthcare-analytics"
+  },
+  "tags": []
+}
