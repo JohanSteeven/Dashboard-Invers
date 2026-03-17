@@ -97,8 +97,8 @@ healthcare-analytics/
 ### Paso 1: Clonar y Configurar
 
 ```bash
-git clone https://github.com/JohanSteeven/healthcare-analytics.git
-cd healthcare-analytics
+git clone https://github.com/JohanSteeven/Dashboard-Invers
+cd Dashboard-Invers
 
 # Entorno Python
 python -m venv .venv
