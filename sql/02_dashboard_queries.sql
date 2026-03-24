@@ -108,18 +108,15 @@ ORDER BY ip.provider_name, mc.condition_name;
 
 SELECT
     mc.condition_name,
-    COUNT(*) AS admission_count,
+
     ROUND(AVG(f.stay_duration_days), 2) AS avg_los,
-    ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY f.stay_duration_days))::numeric, 1) AS median_los,
-    MIN(f.stay_duration_days) AS min_los,
-    MAX(f.stay_duration_days) AS max_los,
-    COUNT(*) FILTER (WHERE f.is_long_stay) AS long_stay_count,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE f.is_long_stay) / NULLIF(COUNT(*), 0), 1) AS long_stay_pct
+    ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY f.stay_duration_days))::numeric, 1) AS median_los
+
+
 FROM healthcare.fact_admissions f
 JOIN healthcare.dim_medical_condition mc ON f.condition_id = mc.condition_id
 GROUP BY mc.condition_name
 ORDER BY avg_los DESC;
-
 
 -- ============================================================
 -- Q4: ABNORMAL TEST RATE BY CONDITION & INSURANCE (Row 4 right)
