@@ -1,8 +1,8 @@
 """
 Phase 3 — Modelado y Carga en PostgreSQL
 
-Loads the cleaned healthcare dataset into a star-schema PostgreSQL database.
-Dimensions are loaded first, then the fact table with FK resolution.
+Carga el dataset de healthcare limpio en una base PostgreSQL con esquema estrella.
+Primero se cargan las dimensiones y luego la tabla de hechos con resolucion de FK.
 
 Requires:
   - PostgreSQL server running and accessible
@@ -29,7 +29,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 # ---------------------------------------------------------------------------
-# Paths
+# Rutas
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_CLEAN = PROJECT_ROOT / "data" / "processed" / "healthcare_clean.csv"
@@ -37,7 +37,7 @@ SCHEMA_SQL = PROJECT_ROOT / "sql" / "01_schema.sql"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
 # ---------------------------------------------------------------------------
-# Logging
+# Registro
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -47,7 +47,7 @@ logging.basicConfig(
 log = logging.getLogger("phase3")
 
 # ---------------------------------------------------------------------------
-# Load tracking
+# Seguimiento de carga
 # ---------------------------------------------------------------------------
 _load_summary: list[dict] = []
 _rejected_records: list[dict] = []
@@ -61,10 +61,10 @@ def _record(table: str, rows: int, status: str = "OK", detail: str = "") -> None
 
 
 # ===================================================================
-# DATABASE CONNECTION
+# CONEXION A BASE DE DATOS
 # ===================================================================
 def get_connection():
-    """Create PostgreSQL connection from environment variables."""
+    """Crea la conexion a PostgreSQL desde variables de entorno."""
     try:
         from dotenv import load_dotenv
         load_dotenv(PROJECT_ROOT / ".env")
@@ -86,10 +86,10 @@ def get_connection():
 
 
 # ===================================================================
-# SCHEMA CREATION
+# CREACION DE ESQUEMA
 # ===================================================================
 def execute_schema(conn) -> None:
-    """Execute the schema SQL file to create all tables, indexes, and views."""
+    """Ejecuta el archivo SQL de esquema para crear tablas, indices y vistas."""
     if not SCHEMA_SQL.exists():
         log.error("Schema file not found: %s", SCHEMA_SQL)
         sys.exit(1)
@@ -101,10 +101,10 @@ def execute_schema(conn) -> None:
 
 
 # ===================================================================
-# DATA LOADING
+# CARGA DE DATOS
 # ===================================================================
 def load_clean_csv() -> pd.DataFrame:
-    """Read the Phase 2 clean CSV with correct dtypes."""
+    """Lee el CSV limpio de Fase 2 con tipos de datos correctos."""
     if not DATA_CLEAN.exists():
         log.error("Clean CSV not found: %s", DATA_CLEAN)
         sys.exit(1)
@@ -117,10 +117,10 @@ def load_clean_csv() -> pd.DataFrame:
 
 
 # ===================================================================
-# DIMENSION LOADING
+# CARGA DE DIMENSIONES
 # ===================================================================
 def load_dim_date(conn, df: pd.DataFrame) -> None:
-    """Generate and load a calendar dimension covering the full date range."""
+    """Genera y carga una dimension calendario que cubre todo el rango de fechas."""
     min_d = min(df["Date of Admission"].min(), df["Discharge Date"].min())
     max_d = max(df["Date of Admission"].max(), df["Discharge Date"].max())
     dates = pd.date_range(start=min_d, end=max_d, freq="D")
@@ -155,7 +155,7 @@ def load_dim_date(conn, df: pd.DataFrame) -> None:
 
 
 def load_dim_simple(conn, table: str, col_name: str, values: list) -> None:
-    """Load a single-column dimension table from unique values."""
+    """Carga una tabla de dimension de una sola columna desde valores unicos."""
     sql = f"""
         INSERT INTO healthcare.{table} ({col_name})
         VALUES %s
@@ -169,7 +169,7 @@ def load_dim_simple(conn, table: str, col_name: str, values: list) -> None:
 
 
 def load_all_dimensions(conn, df: pd.DataFrame) -> None:
-    """Load all dimension tables: calendar + 5 categorical."""
+    """Carga todas las tablas de dimensiones: calendario + 5 categoricas."""
     log.info("--- Loading dimensions ---")
 
     load_dim_date(conn, df)
@@ -186,20 +186,20 @@ def load_all_dimensions(conn, df: pd.DataFrame) -> None:
 
 
 # ===================================================================
-# FK RESOLUTION
+# RESOLUCION DE FK
 # ===================================================================
 def get_dim_map(conn, table: str, id_col: str, name_col: str) -> dict:
-    """Fetch a dimension table and return {name: id} mapping."""
+    """Obtiene una tabla de dimension y retorna un mapeo {nombre: id}."""
     with conn.cursor() as cur:
         cur.execute(f"SELECT {name_col}, {id_col} FROM healthcare.{table}")
         return dict(cur.fetchall())
 
 
 # ===================================================================
-# FACT TABLE LOADING
+# CARGA DE TABLA DE HECHOS
 # ===================================================================
 def _to_native(val):
-    """Convert numpy/pandas types to Python native types for psycopg2."""
+    """Convierte tipos numpy/pandas a tipos nativos de Python para psycopg2."""
     if val is None:
         return None
     if isinstance(val, float) and np.isnan(val):
@@ -214,10 +214,10 @@ def _to_native(val):
 
 
 def load_fact_table(conn, df: pd.DataFrame) -> int:
-    """Resolve FKs, prepare, and bulk-load the fact table.
-    Returns the number of rejected rows."""
+    """Resuelve FKs, prepara y carga masivamente la tabla de hechos.
+    Retorna el numero de filas rechazadas."""
 
-    # Fetch dimension mappings
+    # Obtener mapeos de dimensiones
     cond_map = get_dim_map(conn, "dim_medical_condition", "condition_id", "condition_name")
     type_map = get_dim_map(conn, "dim_admission_type", "admission_type_id", "admission_type_name")
     ins_map = get_dim_map(conn, "dim_insurance", "insurance_id", "provider_name")
@@ -226,7 +226,7 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
 
     fact = df.copy()
 
-    # Compute date IDs (YYYYMMDD integer)
+    # Calcular IDs de fecha (entero YYYYMMDD)
     fact["admission_date_id"] = (
         fact["Date of Admission"].dt.strftime("%Y%m%d").astype(int)
     )
@@ -234,14 +234,14 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
         fact["Discharge Date"].dt.strftime("%Y%m%d").astype(int)
     )
 
-    # Map FK IDs
+    # Mapear IDs de FK
     fact["condition_id"] = fact["Medical Condition"].map(cond_map)
     fact["admission_type_id"] = fact["Admission Type"].map(type_map)
     fact["insurance_id"] = fact["Insurance Provider"].map(ins_map)
     fact["medication_id"] = fact["Medication"].map(med_map)
     fact["test_result_id"] = fact["Test Results"].map(test_map)
 
-    # Detect unmapped FK rows
+    # Detectar filas con FK no mapeada
     fk_cols = [
         "condition_id", "admission_type_id", "insurance_id",
         "medication_id", "test_result_id",
@@ -255,11 +255,11 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
         log.warning("%d rows rejected: unmapped FK", rejected_count)
         fact = fact[~bad_mask]
 
-    # Cast FK columns to int
+    # Convertir columnas FK a int
     for col in fk_cols:
         fact[col] = fact[col].astype(int)
 
-    # Define insert column order (matches fact_admissions DDL)
+    # Definir orden de columnas para insercion (coincide con DDL de fact_admissions)
     insert_cols = [
         "admission_id",
         "admission_date_id", "discharge_date_id",
@@ -274,7 +274,7 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
         "is_long_stay", "abnormal_test_flag", "negative_outcome_flag",
     ]
 
-    # Rename source columns to target names
+    # Renombrar columnas fuente a nombres destino
     rename = {
         "Name": "patient_name",
         "Doctor": "doctor_name",
@@ -288,7 +288,7 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
     fact = fact.rename(columns=rename)
     fact = fact[insert_cols]
 
-    # Build tuples with native Python types
+    # Construir tuplas con tipos nativos de Python
     values = [
         tuple(_to_native(v) for v in row)
         for row in fact.itertuples(index=False)
@@ -310,10 +310,10 @@ def load_fact_table(conn, df: pd.DataFrame) -> int:
 
 
 # ===================================================================
-# AUDIT LOGGING
+# REGISTRO DE AUDITORIA
 # ===================================================================
 def write_audit_entries(conn, source_file: str) -> None:
-    """Insert audit records for every table loaded."""
+    """Inserta registros de auditoria para cada tabla cargada."""
     sql = """
         INSERT INTO healthcare.load_audit
             (source_file, table_name, rows_loaded, status, detail)
@@ -330,10 +330,10 @@ def write_audit_entries(conn, source_file: str) -> None:
 
 
 # ===================================================================
-# POST-LOAD VALIDATION
+# VALIDACION POSTERIOR A LA CARGA
 # ===================================================================
 def validate_load(conn) -> list[dict]:
-    """Run post-load checks against the database. Returns check results."""
+    """Ejecuta verificaciones post-carga en la base de datos. Retorna resultados."""
     checks: list[dict] = []
 
     def _check(name: str, passed: bool, detail: str = "") -> None:
@@ -343,13 +343,13 @@ def validate_load(conn) -> list[dict]:
         log.info("  [%s] %s: %s", symbol, name, detail)
 
     with conn.cursor() as cur:
-        # V1: Fact row count
+        # V1: Conteo de filas de la tabla de hechos
         cur.execute("SELECT COUNT(*) FROM healthcare.fact_admissions")
         fact_count = cur.fetchone()[0]
         _check("V1_FACT_COUNT", fact_count >= 54000,
                f"{fact_count:,} rows in fact_admissions")
 
-        # V2: All dimensions have rows
+        # V2: Todas las dimensiones tienen filas
         for table, expected_min in [
             ("dim_date", 1800), ("dim_medical_condition", 6),
             ("dim_admission_type", 3), ("dim_insurance", 5),
@@ -360,7 +360,7 @@ def validate_load(conn) -> list[dict]:
             _check(f"V2_{table.upper()}", cnt >= expected_min,
                    f"{cnt} rows in {table}")
 
-        # V3: FK integrity (no orphan FKs)
+        # V3: Integridad FK (sin FKs huerfanas)
         cur.execute("""
             SELECT COUNT(*) FROM healthcare.fact_admissions f
             LEFT JOIN healthcare.dim_medical_condition mc
@@ -371,7 +371,7 @@ def validate_load(conn) -> list[dict]:
         _check("V3_FK_INTEGRITY", orphans == 0,
                f"{orphans} orphan condition FKs")
 
-        # V4: Date range matches expected
+        # V4: Rango de fechas coincide con lo esperado
         cur.execute("""
             SELECT MIN(d.full_date), MAX(d.full_date)
             FROM healthcare.fact_admissions f
@@ -381,7 +381,7 @@ def validate_load(conn) -> list[dict]:
         _check("V4_DATE_RANGE", min_date is not None,
                f"Admission dates: {min_date} to {max_date}")
 
-        # V5: No duplicate admission_ids
+        # V5: Sin admission_id duplicados
         cur.execute("""
             SELECT COUNT(*) - COUNT(DISTINCT admission_id)
             FROM healthcare.fact_admissions
@@ -390,7 +390,7 @@ def validate_load(conn) -> list[dict]:
         _check("V5_NO_DUP_PK", dup_pks == 0,
                f"{dup_pks} duplicate admission_ids")
 
-        # V6: Views are queryable
+        # V6: Las vistas son consultables
         for view in [
             "vw_monthly_admissions", "vw_top_hospitals",
             "vw_avg_los_by_condition", "vw_abnormal_rate",
@@ -404,7 +404,7 @@ def validate_load(conn) -> list[dict]:
                 _check(f"V6_{view.upper()}", False, str(e))
                 conn.rollback()
 
-        # V7: Billing sum sanity
+        # V7: Validacion basica de suma de facturacion
         cur.execute("""
             SELECT ROUND(SUM(billing_amount), 2),
                    ROUND(AVG(billing_amount), 2)
@@ -419,10 +419,10 @@ def validate_load(conn) -> list[dict]:
 
 
 # ===================================================================
-# REPORT GENERATION
+# GENERACION DE REPORTES
 # ===================================================================
 def write_load_summary() -> None:
-    """Export load_summary.csv."""
+    """Exporta load_summary.csv."""
     pd.DataFrame(_load_summary).to_csv(
         REPORTS_DIR / "load_summary.csv", index=False,
     )
@@ -430,7 +430,7 @@ def write_load_summary() -> None:
 
 
 def write_rejected_records() -> None:
-    """Export rejected_records.csv if any rows were rejected."""
+    """Exporta rejected_records.csv si hubo filas rechazadas."""
     if _rejected_records:
         pd.DataFrame(_rejected_records).to_csv(
             REPORTS_DIR / "rejected_records.csv", index=False,
@@ -441,7 +441,7 @@ def write_rejected_records() -> None:
 
 
 def write_load_report(checks: list[dict]) -> None:
-    """Generate the Markdown load report."""
+    """Genera el reporte de carga en Markdown."""
     passed = sum(1 for c in checks if c["status"] == "PASS")
     total = len(checks)
 
@@ -507,7 +507,7 @@ def write_load_report(checks: list[dict]) -> None:
 
 
 def write_data_model_description() -> None:
-    """Generate data model documentation."""
+    """Genera documentacion del modelo de datos."""
     lines = [
         "# Data Model Description — Healthcare Analytics",
         "",
@@ -636,7 +636,7 @@ def write_data_model_description() -> None:
 
 
 # ===================================================================
-# MAIN PIPELINE
+# PIPELINE PRINCIPAL
 # ===================================================================
 def main() -> None:
     log.info("=" * 60)
@@ -645,10 +645,10 @@ def main() -> None:
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Load clean CSV
+    # Cargar CSV limpio
     df = load_clean_csv()
 
-    # Connect to PostgreSQL
+    # Conectar a PostgreSQL
     try:
         conn = get_connection()
     except psycopg2.OperationalError as e:
@@ -658,20 +658,20 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        # Create schema and tables
+        # Crear esquema y tablas
         log.info("--- Creating schema ---")
         execute_schema(conn)
 
-        # Load dimensions first
+        # Cargar primero dimensiones
         load_all_dimensions(conn, df)
 
-        # Load fact table (resolves FKs internally)
+        # Cargar tabla de hechos (resuelve FKs internamente)
         rejected = load_fact_table(conn, df)
 
-        # Write audit entries
+        # Escribir registros de auditoria
         write_audit_entries(conn, str(DATA_CLEAN.relative_to(PROJECT_ROOT)))
 
-        # Post-load validation
+        # Validacion posterior a la carga
         log.info("--- Running post-load validations ---")
         checks = validate_load(conn)
 
@@ -683,14 +683,14 @@ def main() -> None:
         conn.close()
         log.info("Database connection closed.")
 
-    # Generate reports
+    # Generar reportes
     log.info("--- Generating reports ---")
     write_load_summary()
     write_rejected_records()
     write_load_report(checks)
     write_data_model_description()
 
-    # Final summary
+    # Resumen final
     passed = sum(1 for c in checks if c["status"] == "PASS")
     total = len(checks)
     total_rows = sum(s["rows_loaded"] for s in _load_summary)

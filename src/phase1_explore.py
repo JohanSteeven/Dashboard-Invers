@@ -2,8 +2,8 @@
 Phase 1 — Exploracion y Diagnostico del Dataset
 Healthcare Admissions Dataset (55,500 rows x 15 columns)
 
-Generates EDA reports, data quality diagnostics, and basic visualizations.
-All outputs are saved to reports/ and reports/figures/.
+Genera reportes de EDA, diagnosticos de calidad de datos y visualizaciones basicas.
+Todos los resultados se guardan en reports/ y reports/figures/.
 """
 
 import json
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")  # non-interactive backend for headless execution
+matplotlib.use("Agg")  # backend no interactivo para ejecucion sin interfaz
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -19,7 +19,7 @@ import pandas as pd
 import seaborn as sns
 
 # ---------------------------------------------------------------------------
-# Paths
+# Rutas
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_RAW = PROJECT_ROOT / "data" / "raw" / "healthcare_dataset.csv"
@@ -41,10 +41,10 @@ HIGH_CARD_TEXT = ["Name", "Doctor", "Hospital"]
 
 
 # ---------------------------------------------------------------------------
-# 1. Load
+# 1. Carga
 # ---------------------------------------------------------------------------
 def load_data(path: Path) -> pd.DataFrame:
-    """Read the raw CSV and parse date columns."""
+    """Lee el CSV crudo y parsea columnas de fecha."""
     if not path.exists():
         print(f"[ERROR] File not found: {path}")
         sys.exit(1)
@@ -56,10 +56,10 @@ def load_data(path: Path) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 2. Structural overview
+# 2. Resumen estructural
 # ---------------------------------------------------------------------------
 def structural_overview(df: pd.DataFrame) -> dict:
-    """Basic shape, types, and memory usage."""
+    """Forma basica, tipos y uso de memoria."""
     return {
         "rows": int(df.shape[0]),
         "columns": int(df.shape[1]),
@@ -69,10 +69,10 @@ def structural_overview(df: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 3. Null analysis
+# 3. Analisis de nulos
 # ---------------------------------------------------------------------------
 def null_analysis(df: pd.DataFrame) -> pd.DataFrame:
-    """Absolute and percentage null counts per column."""
+    """Conteos absolutos y porcentuales de nulos por columna."""
     nulls = df.isnull().sum()
     pct = (nulls / len(df) * 100).round(2)
     summary = pd.DataFrame({"null_count": nulls, "null_pct": pct})
@@ -81,15 +81,15 @@ def null_analysis(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 4. Duplicate detection
+# 4. Deteccion de duplicados
 # ---------------------------------------------------------------------------
 def duplicate_analysis(df: pd.DataFrame) -> dict:
-    """Exact duplicates and suspicious near-duplicates."""
+    """Duplicados exactos y casi-duplicados sospechosos."""
     exact_mask = df.duplicated(keep="first")
     exact_count = int(exact_mask.sum())
 
-    # Suspicious duplicates: same Name + Date of Admission + Doctor + Hospital
-    # but different in at least one other column
+    # Duplicados sospechosos: mismo Name + Date of Admission + Doctor + Hospital
+    # pero diferentes en al menos otra columna
     suspect_cols = ["Name", "Date of Admission", "Doctor", "Hospital"]
     available = [c for c in suspect_cols if c in df.columns]
     if len(available) == len(suspect_cols):
@@ -108,10 +108,10 @@ def duplicate_analysis(df: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 5. Cardinality
+# 5. Cardinalidad
 # ---------------------------------------------------------------------------
 def cardinality_report(df: pd.DataFrame) -> pd.DataFrame:
-    """Unique values per column."""
+    """Valores unicos por columna."""
     card = df.nunique()
     pct = (card / len(df) * 100).round(2)
     report = pd.DataFrame({
@@ -123,10 +123,10 @@ def cardinality_report(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 6. Numerical profiling
+# 6. Perfilado numerico
 # ---------------------------------------------------------------------------
 def numerical_profiling(df: pd.DataFrame) -> pd.DataFrame:
-    """Descriptive stats + outlier detection (IQR method) for numeric cols."""
+    """Estadisticas descriptivas + deteccion de outliers (metodo IQR) para columnas numericas."""
     num_cols = [c for c in NUMERIC_COLUMNS if c in df.columns]
     rows = []
     for col in num_cols:
@@ -157,10 +157,10 @@ def numerical_profiling(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 7. Categorical profiling
+# 7. Perfilado categorico
 # ---------------------------------------------------------------------------
 def categorical_profiling(df: pd.DataFrame) -> pd.DataFrame:
-    """Frequency tables for low-cardinality categorical columns."""
+    """Tablas de frecuencia para columnas categoricas de baja cardinalidad."""
     rows = []
     for col in CATEGORICAL_COLUMNS:
         if col not in df.columns:
@@ -177,10 +177,10 @@ def categorical_profiling(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 8. Date validation
+# 8. Validacion de fechas
 # ---------------------------------------------------------------------------
 def date_analysis(df: pd.DataFrame) -> dict:
-    """Detect invalid, missing, or incoherent dates."""
+    """Detecta fechas invalidas, faltantes o incoherentes."""
     results = {}
     for col in DATE_COLUMNS:
         if col not in df.columns:
@@ -194,13 +194,13 @@ def date_analysis(df: pd.DataFrame) -> dict:
             "unique_dates": int(valid.nunique()),
         }
 
-    # Cross-date coherence: Discharge should be >= Admission
+    # Coherencia entre fechas: Discharge debe ser >= Date of Admission
     if "Date of Admission" in df.columns and "Discharge Date" in df.columns:
         mask = df["Discharge Date"] < df["Date of Admission"]
         invalid_range = int(mask.sum())
         results["discharge_before_admission"] = invalid_range
 
-    # Length of stay distribution
+    # Distribucion de duracion de estancia
     if "Date of Admission" in df.columns and "Discharge Date" in df.columns:
         los = (df["Discharge Date"] - df["Date of Admission"]).dt.days
         results["length_of_stay"] = {
@@ -213,10 +213,10 @@ def date_analysis(df: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 9. Text inconsistencies
+# 9. Inconsistencias de texto
 # ---------------------------------------------------------------------------
 def text_quality_analysis(df: pd.DataFrame) -> dict:
-    """Detect capitalization issues, leading/trailing spaces, and dirty patterns."""
+    """Detecta problemas de capitalizacion, espacios al inicio/final y patrones sucios."""
     results = {}
     for col in HIGH_CARD_TEXT:
         if col not in df.columns:
@@ -227,7 +227,7 @@ def text_quality_analysis(df: pd.DataFrame) -> dict:
         leading_trailing_spaces = int(s.str.contains(r"^\s|\s$", regex=True).sum())
         multiple_spaces = int(s.str.contains(r"\s{2,}", regex=True).sum())
 
-        # Title Case check
+        # Verificacion de Title Case
         title_case_mask = s.apply(lambda x: x == x.title())
         not_title_case = int((~title_case_mask).sum())
 
@@ -239,7 +239,7 @@ def text_quality_analysis(df: pd.DataFrame) -> dict:
             "not_title_case_pct": round(not_title_case / total * 100, 2) if total > 0 else 0,
         }
 
-        # Column-specific checks
+        # Verificaciones especificas por columna
         if col == "Name":
             prefixes = ["Mr.", "Mrs.", "Ms.", "Dr.", "Miss"]
             prefix_mask = s.str.split().str[0].isin(prefixes)
@@ -263,7 +263,7 @@ def text_quality_analysis(df: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 10. Quality priority summary
+# 10. Resumen de prioridades de calidad
 # ---------------------------------------------------------------------------
 def quality_priority_summary(
     struct: dict,
@@ -273,10 +273,10 @@ def quality_priority_summary(
     text_quality: dict,
     date_info: dict,
 ) -> list[dict]:
-    """Consolidated list of data quality issues, ranked by severity."""
+    """Lista consolidada de problemas de calidad de datos, ordenada por severidad."""
     issues = []
 
-    # Duplicates
+    # Duplicados
     if dupes["exact_duplicates"] > 0:
         issues.append({
             "priority": 1,
@@ -286,7 +286,7 @@ def quality_priority_summary(
             "action": "Remove exact duplicates",
         })
 
-    # No primary key (always true for this dataset)
+    # Sin llave primaria (siempre cierto para este dataset)
     issues.append({
         "priority": 2,
         "severity": "HIGH",
@@ -295,7 +295,7 @@ def quality_priority_summary(
         "action": "Generate surrogate key (admission_id)",
     })
 
-    # Nulls
+    # Nulos
     total_nulls = int(nulls_df["null_count"].sum())
     if total_nulls > 0:
         cols_with_nulls = int((nulls_df["null_count"] > 0).sum())
@@ -315,7 +315,7 @@ def quality_priority_summary(
             "action": "Document as synthetic data indicator",
         })
 
-    # Name capitalization
+    # Capitalizacion de nombres
     name_info = text_quality.get("Name", {})
     if name_info.get("not_title_case", 0) > 0:
         issues.append({
@@ -326,7 +326,7 @@ def quality_priority_summary(
             "action": "Normalize to Title Case, remove prefixes",
         })
 
-    # Negative billing
+    # Facturacion negativa
     neg_row = num_prof[num_prof["column"] == "Billing Amount"]
     if not neg_row.empty:
         neg_count = int(neg_row.iloc[0]["negative_values"])
@@ -339,7 +339,7 @@ def quality_priority_summary(
                 "action": "Flag with is_billing_negative; exclude from revenue metrics",
             })
 
-    # Hospital names
+    # Nombres de hospitales
     hosp_info = text_quality.get("Hospital", {})
     if hosp_info.get("contains_comma", 0) > 0:
         issues.append({
@@ -353,7 +353,7 @@ def quality_priority_summary(
             "action": "Clean trailing commas, leading/trailing 'and'",
         })
 
-    # Billing precision
+    # Precision de facturacion
     issues.append({
         "priority": 7,
         "severity": "LOW",
@@ -362,7 +362,7 @@ def quality_priority_summary(
         "action": "Round to 2 decimals",
     })
 
-    # Discharge before admission
+    # Alta antes del ingreso
     dba = date_info.get("discharge_before_admission", 0)
     if dba > 0:
         issues.append({
@@ -373,7 +373,7 @@ def quality_priority_summary(
             "action": "Investigate and correct or remove",
         })
 
-    # Uniform distributions (observation)
+    # Distribuciones uniformes (observacion)
     issues.append({
         "priority": 9,
         "severity": "OBSERVATION",
@@ -386,10 +386,10 @@ def quality_priority_summary(
 
 
 # ---------------------------------------------------------------------------
-# 11. Data dictionary builder
+# 11. Constructor de diccionario de datos
 # ---------------------------------------------------------------------------
 def build_data_dictionary(df: pd.DataFrame) -> pd.DataFrame:
-    """Generate a data dictionary with column metadata."""
+    """Genera un diccionario de datos con metadatos de columnas."""
     rows = []
     for col in df.columns:
         s = df[col]
@@ -419,10 +419,10 @@ def build_data_dictionary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 12. Visualizations
+# 12. Visualizaciones
 # ---------------------------------------------------------------------------
 def plot_null_distribution(nulls_df: pd.DataFrame, out_dir: Path) -> None:
-    """Bar chart of null counts per column."""
+    """Grafico de barras con conteo de nulos por columna."""
     fig, ax = plt.subplots(figsize=(12, 5))
     colors = ["#2ecc71" if v == 0 else "#e74c3c" for v in nulls_df["null_count"]]
     ax.barh(nulls_df.index, nulls_df["null_count"], color=colors)
@@ -437,7 +437,7 @@ def plot_null_distribution(nulls_df: pd.DataFrame, out_dir: Path) -> None:
 
 
 def plot_top_categories(df: pd.DataFrame, col: str, out_dir: Path) -> None:
-    """Horizontal bar chart of top categories for a given column."""
+    """Grafico de barras horizontal de categorias principales para una columna dada."""
     vc = df[col].value_counts().head(15)
     fig, ax = plt.subplots(figsize=(9, 5))
     sns.barplot(x=vc.values, y=vc.index, hue=vc.index, palette="viridis", legend=False, ax=ax)
@@ -450,7 +450,7 @@ def plot_top_categories(df: pd.DataFrame, col: str, out_dir: Path) -> None:
 
 
 def plot_numeric_distribution(df: pd.DataFrame, col: str, out_dir: Path) -> None:
-    """Histogram + KDE for a numeric column."""
+    """Histograma + KDE para una columna numerica."""
     fig, ax = plt.subplots(figsize=(9, 5))
     data = df[col].dropna()
     sns.histplot(data, bins=50, kde=True, color="#3498db", ax=ax)
@@ -465,7 +465,7 @@ def plot_numeric_distribution(df: pd.DataFrame, col: str, out_dir: Path) -> None
 
 
 def plot_monthly_admissions(df: pd.DataFrame, date_col: str, out_dir: Path) -> None:
-    """Monthly admission count time series."""
+    """Serie temporal mensual del conteo de admisiones."""
     if date_col not in df.columns:
         return
     monthly = df.set_index(date_col).resample("MS").size().reset_index(name="admissions")
@@ -483,7 +483,7 @@ def plot_monthly_admissions(df: pd.DataFrame, date_col: str, out_dir: Path) -> N
 
 
 # ---------------------------------------------------------------------------
-# 13. Export functions
+# 13. Funciones de exportacion
 # ---------------------------------------------------------------------------
 def export_eda_report(
     struct: dict,
@@ -496,7 +496,7 @@ def export_eda_report(
     quality_issues: list[dict],
     out_dir: Path,
 ) -> None:
-    """Write a Markdown EDA report."""
+    """Escribe un reporte EDA en Markdown."""
     lines = [
         "# EDA Report — Healthcare Dataset",
         f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}",
@@ -619,7 +619,7 @@ def export_diagnosis_json(
     quality_issues: list[dict],
     out_dir: Path,
 ) -> None:
-    """Export structured diagnosis as JSON for downstream consumption."""
+    """Exporta el diagnostico estructurado como JSON para consumo posterior."""
     diagnosis = {
         "generated_at": pd.Timestamp.now().isoformat(),
         "source_file": "data/raw/healthcare_dataset.csv",
@@ -636,7 +636,7 @@ def export_diagnosis_json(
 
 
 def _serialize_date_info(date_info: dict) -> dict:
-    """Ensure all values in date_info are JSON-serializable."""
+    """Asegura que todos los valores en date_info sean serializables a JSON."""
     out = {}
     for k, v in date_info.items():
         if isinstance(v, dict):
@@ -647,7 +647,7 @@ def _serialize_date_info(date_info: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Principal
 # ---------------------------------------------------------------------------
 def main() -> None:
     print("=" * 60)
@@ -657,65 +657,65 @@ def main() -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Load
+    # Carga
     print("\n[1/10] Loading dataset...")
     df = load_data(DATA_RAW)
     print(f"       Loaded {df.shape[0]:,} rows x {df.shape[1]} columns")
 
-    # Structure
+    # Estructura
     print("[2/10] Structural overview...")
     struct = structural_overview(df)
 
-    # Nulls
+    # Nulos
     print("[3/10] Null analysis...")
     nulls_df = null_analysis(df)
     nulls_df.to_csv(REPORTS_DIR / "nulls_summary.csv")
 
-    # Duplicates
+    # Duplicados
     print("[4/10] Duplicate detection...")
     dupes = duplicate_analysis(df)
     dup_df = pd.DataFrame([dupes])
     dup_df.to_csv(REPORTS_DIR / "duplicates_summary.csv", index=False)
     print(f"       Found {dupes['exact_duplicates']} exact duplicates")
 
-    # Cardinality
+    # Cardinalidad
     print("[5/10] Cardinality analysis...")
     card_df = cardinality_report(df)
-    # cardinality used internally; data dictionary covers this
+    # cardinalidad usada internamente; el diccionario de datos cubre esto
 
-    # Numerical profiling
+    # Perfilado numerico
     print("[6/10] Numerical profiling...")
     num_prof = numerical_profiling(df)
     num_prof.to_csv(REPORTS_DIR / "numerical_summary.csv", index=False)
 
-    # Categorical profiling
+    # Perfilado categorico
     print("[7/10] Categorical profiling...")
     cat_prof = categorical_profiling(df)
     cat_prof.to_csv(REPORTS_DIR / "categorical_summary.csv", index=False)
 
-    # Dates
+    # Fechas
     print("[8/10] Date validation...")
     date_info = date_analysis(df)
 
-    # Text quality
+    # Calidad de texto
     print("[9/10] Text quality analysis...")
     text_quality = text_quality_analysis(df)
 
-    # Quality priority
+    # Prioridad de calidad
     print("[10/10] Generating quality summary and exports...")
     quality_issues = quality_priority_summary(struct, nulls_df, dupes, num_prof, text_quality, date_info)
 
-    # Data dictionary
+    # Diccionario de datos
     dict_df = build_data_dictionary(df)
     dict_df.to_csv(REPORTS_DIR / "data_dictionary.csv", index=False)
 
-    # Markdown report
+    # Reporte en Markdown
     export_eda_report(struct, nulls_df, dupes, num_prof, cat_prof, date_info, text_quality, quality_issues, REPORTS_DIR)
 
-    # JSON diagnosis
+    # Diagnostico JSON
     export_diagnosis_json(struct, dupes, date_info, text_quality, quality_issues, REPORTS_DIR)
 
-    # Visualizations
+    # Visualizaciones
     print("\nGenerating visualizations...")
     plot_null_distribution(nulls_df, FIGURES_DIR)
     print("  -> null_distribution.png")
@@ -729,7 +729,7 @@ def main() -> None:
     plot_monthly_admissions(df, "Date of Admission", FIGURES_DIR)
     print("  -> monthly_admissions.png")
 
-    # Final summary
+    # Resumen final
     print("\n" + "=" * 60)
     print("Phase 1 complete. Outputs generated:")
     print("=" * 60)

@@ -1,7 +1,7 @@
 """
 Phase 2 — Limpieza y Transformacion del Healthcare Dataset
 
-Every transformation rule is derived from confirmed Phase 1 findings:
+Cada regla de transformacion se deriva de hallazgos confirmados de la Fase 1:
   - diagnosis_report.json (8 quality issues)
   - 01_diagnostico_tecnico.md (10 prioritized problems)
   - numerical_summary.csv (108 negative billing amounts, 40 below $100)
@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Paths
+# Rutas
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_RAW = PROJECT_ROOT / "data" / "raw" / "healthcare_dataset.csv"
@@ -34,7 +34,7 @@ DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
 # ---------------------------------------------------------------------------
-# Logging
+# Registro
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -44,7 +44,7 @@ logging.basicConfig(
 log = logging.getLogger("phase2")
 
 # ---------------------------------------------------------------------------
-# Transformation log accumulator
+# Acumulador del log de transformaciones
 # ---------------------------------------------------------------------------
 _transform_log: list[dict] = []
 
@@ -57,7 +57,7 @@ def _log_event(
     criteria: str = "",
     risk: str = "",
 ) -> None:
-    """Append a transformation event to the global log with full traceability."""
+    """Agrega un evento de transformacion al log global con trazabilidad completa."""
     _transform_log.append({
         "rule": rule,
         "column": column,
@@ -70,10 +70,10 @@ def _log_event(
 
 
 # ===================================================================
-# LOAD
+# CARGA
 # ===================================================================
 def load_raw(path: Path) -> pd.DataFrame:
-    """Load the raw CSV with date parsing and encoding handling."""
+    """Carga el CSV crudo con parseo de fechas y manejo de codificacion."""
     if not path.exists():
         log.error("File not found: %s", path)
         sys.exit(1)
@@ -91,11 +91,11 @@ def load_raw(path: Path) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 1 — Remove exact duplicates
-# Diagnosis: 534 exact duplicate rows (0.96%), Issue #1 HIGH
+# REGLA 1 — Eliminar duplicados exactos
+# Diagnostico: 534 filas duplicadas exactas (0.96%), Problema #1 ALTO
 # ===================================================================
 def remove_exact_duplicates(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop exact duplicate rows, keeping the first occurrence."""
+    """Elimina filas duplicadas exactas, conservando la primera ocurrencia."""
     before = len(df)
     df = df.drop_duplicates(keep="first").reset_index(drop=True)
     removed = before - len(df)
@@ -109,11 +109,11 @@ def remove_exact_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 2 — Generate surrogate primary key
-# Diagnosis: No natural column guarantees uniqueness, Issue #2 HIGH
+# REGLA 2 — Generar llave primaria sustituta
+# Diagnostico: Ninguna columna natural garantiza unicidad, Problema #2 ALTO
 # ===================================================================
 def add_surrogate_key(df: pd.DataFrame) -> pd.DataFrame:
-    """Add an integer surrogate key as the first column."""
+    """Agrega una llave sustituta entera como primera columna."""
     df.insert(0, "admission_id", range(1, len(df) + 1))
     _log_event(
         "R2_PK", "admission_id", len(df),
@@ -125,19 +125,19 @@ def add_surrogate_key(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 3 — Normalize patient names
-# Diagnosis: 99.94% not Title Case (55,467), 216 with prefixes
-#            Issue #3 MEDIUM
+# REGLA 3 — Normalizar nombres de pacientes
+# Diagnostico: 99.94% no esta en Title Case (55,467), 216 con prefijos
+#              Problema #3 MEDIO
 # ===================================================================
 _NAME_PREFIXES = re.compile(r"^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Miss)\s+", re.IGNORECASE)
 _NAME_SUFFIXES = re.compile(r"\s+(Jr\.?|Sr\.?|II|III|IV)$", re.IGNORECASE)
 
 
 def normalize_names(df: pd.DataFrame) -> pd.DataFrame:
-    """Title-case patient names, extract prefixes/suffixes to separate columns."""
+    """Aplica Title Case a nombres de pacientes y extrae prefijos/sufijos a columnas separadas."""
     raw = df["Name"].astype(str)
 
-    # Extract prefixes and suffixes before removing
+    # Extraer prefijos y sufijos antes de remover
     df["name_prefix"] = raw.str.extract(_NAME_PREFIXES.pattern, flags=re.IGNORECASE)[0]
     df["name_suffix"] = raw.str.extract(
         r"\s+(Jr\.?|Sr\.?|II|III|IV)$", flags=re.IGNORECASE
@@ -146,7 +146,7 @@ def normalize_names(df: pd.DataFrame) -> pd.DataFrame:
     prefixes_found = int(df["name_prefix"].notna().sum())
     suffixes_found = int(df["name_suffix"].notna().sum())
 
-    # Clean: remove prefix, remove suffix, title-case
+    # Limpieza: remover prefijo, remover sufijo, aplicar Title Case
     cleaned = raw.str.replace(_NAME_PREFIXES, "", regex=True)
     cleaned = cleaned.str.replace(_NAME_SUFFIXES, "", regex=True)
     cleaned = cleaned.str.strip().str.title()
@@ -166,22 +166,22 @@ def normalize_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 4 — Normalize doctor names + extract title
-# Diagnosis: 2.25% not Title Case, 1,124 prefixes, 982 suffixes
-#            Issue #7 LOW, proposed doctor_title column
+# REGLA 4 — Normalizar nombres de doctores + extraer titulo
+# Diagnostico: 2.25% no esta en Title Case, 1,124 prefijos, 982 sufijos
+#              Problema #7 BAJO, columna doctor_title propuesta
 # ===================================================================
 _DOCTOR_SUFFIX = re.compile(r"\s+(MD|DVM|PhD|Jr\.?|Sr\.?)$", re.IGNORECASE)
 
 
 def normalize_doctors(df: pd.DataFrame) -> pd.DataFrame:
-    """Title-case doctor names, extract professional title to separate column."""
+    """Aplica Title Case a nombres de doctores y extrae el titulo profesional a una columna separada."""
     raw = df["Doctor"].astype(str)
 
-    # Extract professional suffix before removing
+    # Extraer sufijo profesional antes de remover
     df["doctor_title"] = raw.str.extract(_DOCTOR_SUFFIX.pattern, flags=re.IGNORECASE)[0]
     titles_found = int(df["doctor_title"].notna().sum())
 
-    # Remove prefix titles and suffixes
+    # Remover prefijos de titulo y sufijos
     cleaned = raw.str.replace(_NAME_PREFIXES, "", regex=True)
     cleaned = cleaned.str.replace(_DOCTOR_SUFFIX, "", regex=True)
     cleaned = cleaned.str.strip().str.title()
@@ -199,23 +199,23 @@ def normalize_doctors(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 5 — Clean hospital names
-# Diagnosis: 18,635 with commas, 5,749 starting with 'and',
-#            5,602 ending with 'and', 4,776 ending with comma
-#            Issue #5 MEDIUM
+# REGLA 5 — Limpiar nombres de hospitales
+# Diagnostico: 18,635 con comas, 5,749 iniciando con 'and',
+#              5,602 terminando en 'and', 4,776 terminando en coma
+#              Problema #5 MEDIO
 # ===================================================================
 def clean_hospital_names(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove trailing commas, leading/trailing 'and', normalize case."""
+    """Remueve comas finales, 'and' al inicio/final, y normaliza mayusculas/minusculas."""
     raw = df["Hospital"].astype(str)
     cleaned = raw.copy()
 
-    # Strip trailing commas (multiple passes for nested cases)
+    # Quitar comas al final (varias pasadas para casos anidados)
     cleaned = cleaned.str.replace(r",\s*$", "", regex=True)
-    # Remove leading "and "
+    # Remover "and " al inicio
     cleaned = cleaned.str.replace(r"^and\s+", "", regex=True, flags=re.IGNORECASE)
-    # Remove trailing " and"
+    # Remover " and" al final
     cleaned = cleaned.str.replace(r"\s+and$", "", regex=True, flags=re.IGNORECASE)
-    # Clean remaining loose commas
+    # Limpiar comas sueltas restantes
     cleaned = cleaned.str.replace(r",\s*,", ",", regex=True)
     cleaned = cleaned.str.replace(r",\s*$", "", regex=True)
     # Title Case
@@ -231,11 +231,11 @@ def clean_hospital_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 6 — Round billing to 2 decimals
-# Diagnosis: Up to 15 decimal places, Issue #6 LOW
+# REGLA 6 — Redondear facturacion a 2 decimales
+# Diagnostico: Hasta 15 decimales, Problema #6 BAJO
 # ===================================================================
 def round_billing(df: pd.DataFrame) -> pd.DataFrame:
-    """Round Billing Amount to 2 decimal places (currency standard)."""
+    """Redondea Billing Amount a 2 decimales (estandar de moneda)."""
     df["Billing Amount"] = df["Billing Amount"].round(2)
     _log_event("R6_BILLING", "Billing Amount", len(df),
                "Rounded to 2 decimals",
@@ -245,12 +245,12 @@ def round_billing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 7 — Flag negative billing (do NOT delete)
-# Diagnosis: 108 records with negative billing (-2,008.49 to -23.87)
-#            Issue #4 MEDIUM
+# REGLA 7 — Marcar facturacion negativa (NO eliminar)
+# Diagnostico: 108 registros con facturacion negativa (-2,008.49 a -23.87)
+#              Problema #4 MEDIO
 # ===================================================================
 def flag_negative_billing(df: pd.DataFrame) -> pd.DataFrame:
-    """Add boolean flag for negative billing amounts."""
+    """Agrega bandera booleana para montos de facturacion negativos."""
     mask = df["Billing Amount"] < 0
     df["is_billing_negative"] = mask
     count = int(mask.sum())
@@ -262,12 +262,12 @@ def flag_negative_billing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 8 — Flag low billing amounts
-# Diagnosis: 40 amounts < $100 in absolute value, Issue #8 LOW
-#            Mean $25,539; amounts like $0.50-$99 are statistical anomalies
+# REGLA 8 — Marcar montos de facturacion bajos
+# Diagnostico: 40 montos < $100 en valor absoluto, Problema #8 BAJO
+#              Media $25,539; montos como $0.50-$99 son anomalias estadisticas
 # ===================================================================
 def flag_low_billing(df: pd.DataFrame) -> pd.DataFrame:
-    """Flag billing amounts below $100 in absolute value."""
+    """Marca montos de facturacion por debajo de $100 en valor absoluto."""
     mask = df["Billing Amount"].abs() < 100
     df["is_billing_low"] = mask
     count = int(mask.sum())
@@ -279,12 +279,12 @@ def flag_low_billing(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 9 — Validate date coherence
-# Diagnosis: 0 discharge < admission, LOS 1-30, 0 zero-day stays
-#            Defensive validation for future data appends
+# REGLA 9 — Validar coherencia de fechas
+# Diagnostico: 0 casos con discharge < admission, LOS 1-30, 0 estancias de 0 dias
+#              Validacion defensiva para futuras adiciones de datos
 # ===================================================================
 def validate_dates(df: pd.DataFrame) -> pd.DataFrame:
-    """Validate admission/discharge coherence and flag violations."""
+    """Valida la coherencia ingreso/alta y marca violaciones."""
     invalid_mask = df["Discharge Date"] < df["Date of Admission"]
     invalid_count = int(invalid_mask.sum())
 
@@ -308,12 +308,12 @@ def validate_dates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# RULE 10 — Trim & collapse whitespace on all string columns
-# Diagnosis: 0 leading/trailing spaces detected, but standard
-#            pre-load normalization for DB ingest
+# REGLA 10 — Recortar y colapsar espacios en blanco en todas las columnas de texto
+# Diagnostico: Se detectaron 0 espacios al inicio/final, pero es una
+#              normalizacion estandar previa a la carga en BD
 # ===================================================================
 def clean_whitespace(df: pd.DataFrame) -> pd.DataFrame:
-    """Trim and collapse multi-spaces on all object/string columns."""
+    """Recorta y colapsa multiples espacios en columnas object/string."""
     str_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
     total_changed = 0
     for col in str_cols:
@@ -331,40 +331,40 @@ def clean_whitespace(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# DERIVED COLUMNS
-# Justified by the 5 dashboard questions, the diagnostic document,
-# and the proposed PostgreSQL schema.
+# COLUMNAS DERIVADAS
+# Justificadas por las 5 preguntas del dashboard, el documento diagnostico
+# y el esquema PostgreSQL propuesto.
 # ===================================================================
 def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Generate analytically useful columns from confirmed raw fields."""
+    """Genera columnas analiticamente utiles desde campos crudos confirmados."""
 
-    # D1: stay_duration_days — from two confirmed datetime columns
-    # Dashboard: KPI average LOS (P3), segmentation
+    # D1: stay_duration_days — desde dos columnas datetime confirmadas
+    # Dashboard: KPI de LOS promedio (P3), segmentacion
     df["stay_duration_days"] = (
         df["Discharge Date"] - df["Date of Admission"]
     ).dt.days
     _log_event("D1_STAY", "stay_duration_days", len(df),
                "Discharge - Admission in days (range 1-30 confirmed)")
 
-    # D2: age_group — binned from Age (confirmed range 13-89)
-    # Dashboard: bar charts, cross-filters
-    # Diagnosis Issue #9: 116 pediatric patients (13-17) need segmentation
+    # D2: age_group — agrupado por bins desde Age (rango confirmado 13-89)
+    # Dashboard: graficos de barras, filtros cruzados
+    # Diagnostico Problema #9: 116 pacientes pediatricos (13-17) requieren segmentacion
     bins = [0, 17, 30, 45, 60, 75, 100]
     labels = ["13-17", "18-30", "31-45", "46-60", "61-75", "76-89"]
     df["age_group"] = pd.cut(df["Age"], bins=bins, labels=labels, right=True)
     _log_event("D2_AGE_GROUP", "age_group", len(df),
                "6 bands: 13-17 (pediatric) through 76-89")
 
-    # D3: is_pediatric — boolean flag for pediatric segmentation
-    # Diagnosis Issue #9: 116 patients aged 13-17
+    # D3: is_pediatric — bandera booleana para segmentacion pediatrica
+    # Diagnostico Problema #9: 116 pacientes entre 13-17 anos
     df["is_pediatric"] = df["Age"] < 18
     pediatric_count = int(df["is_pediatric"].sum())
     _log_event("D3_PEDIATRIC", "is_pediatric", pediatric_count,
                f"Flagged {pediatric_count} patients aged < 18",
                "Diagnosis found 116 pediatric patients needing differentiated analysis")
 
-    # D4: billing_range — quartile-based bands (exclude negatives for boundaries)
-    # Dashboard: revenue segmentation (P5)
+    # D4: billing_range — bandas por cuartiles (excluye negativos para limites)
+    # Dashboard: segmentacion de ingresos (P5)
     positive_billing = df.loc[df["Billing Amount"] >= 0, "Billing Amount"]
     quartile_edges = positive_billing.quantile([0, 0.25, 0.5, 0.75, 1.0]).values
     boundaries = [-np.inf, quartile_edges[1], quartile_edges[2], quartile_edges[3], np.inf]
@@ -377,35 +377,35 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     _log_event("D4_BILLING_RANGE", "billing_range", len(df),
                "Quartile-based bands (computed on positive amounts only)")
 
-    # D5: admission_month — for time-series in dashboard (P1)
+    # D5: admission_month — para series temporales en dashboard (P1)
     df["admission_month"] = df["Date of Admission"].dt.to_period("M").astype(str)
     _log_event("D5_ADM_MONTH", "admission_month", len(df), "YYYY-MM for time series")
 
-    # D6: admission_year — for yearly aggregation (P1)
+    # D6: admission_year — para agregacion anual (P1)
     df["admission_year"] = df["Date of Admission"].dt.year
     _log_event("D6_ADM_YEAR", "admission_year", len(df), "Year extraction")
 
-    # D7: admission_quarter — for quarterly segmentation
-    # Aligns with proposed dim_date schema (year, quarter)
+    # D7: admission_quarter — para segmentacion trimestral
+    # Alineado con el esquema dim_date propuesto (anio, trimestre)
     df["admission_quarter"] = df["Date of Admission"].dt.quarter
     _log_event("D7_ADM_QUARTER", "admission_quarter", len(df),
                "Quarter extraction (1-4)")
 
-    # D8: abnormal_test_flag — binary flag for outcome analysis (P4)
+    # D8: abnormal_test_flag — bandera binaria para analisis de resultados (P4)
     df["abnormal_test_flag"] = (df["Test Results"] == "Abnormal")
     abnormal_count = int(df["abnormal_test_flag"].sum())
     _log_event("D8_ABNORMAL", "abnormal_test_flag", abnormal_count,
                "True where Test Results == Abnormal")
 
-    # D9: is_long_stay — stays above 75th percentile for resource analysis
+    # D9: is_long_stay — estancias sobre el percentil 75 para analisis de recursos
     p75 = df["stay_duration_days"].quantile(0.75)
     df["is_long_stay"] = df["stay_duration_days"] > p75
     long_count = int(df["is_long_stay"].sum())
     _log_event("D9_LONG_STAY", "is_long_stay", long_count,
                f"stay_duration_days > {p75:.0f} (P75)")
 
-    # D10: negative_outcome_flag — composite risk indicator
-    # Combines abnormal test + negative billing for adverse event analysis
+    # D10: negative_outcome_flag — indicador de riesgo compuesto
+    # Combina prueba anormal + facturacion negativa para analisis de eventos adversos
     df["negative_outcome_flag"] = (
         df["abnormal_test_flag"] & df["is_billing_negative"]
     )
@@ -417,11 +417,11 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===================================================================
-# VALIDATION SUITE
-# 16 checks covering types, domains, consistency, integrity
+# SUITE DE VALIDACION
+# 16 verificaciones que cubren tipos, dominios, consistencia e integridad
 # ===================================================================
 def run_validations(df: pd.DataFrame) -> list[dict]:
-    """Post-transformation validations. Returns a list of check results."""
+    """Validaciones posteriores a la transformacion. Retorna una lista de resultados."""
     checks: list[dict] = []
 
     def _check(name: str, passed: bool, detail: str = "") -> None:
@@ -430,26 +430,26 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
         symbol = "OK" if passed else "XX"
         log.info("  [%s] %s: %s", symbol, name, detail)
 
-    # V1: No exact duplicates remain
+    # V1: No quedan duplicados exactos
     dup_count = int(df.duplicated(subset=[
         c for c in df.columns if c not in ("admission_id",)
     ]).sum())
     _check("V01_NO_EXACT_DUPES", dup_count == 0,
            f"{dup_count} exact duplicates remaining")
 
-    # V2: Surrogate key is unique and sequential
+    # V2: La llave sustituta es unica y secuencial
     pk_unique = df["admission_id"].is_unique
     pk_sequential = (df["admission_id"].diff().dropna() == 1).all()
     _check("V02_PK_UNIQUE", pk_unique, f"admission_id unique: {pk_unique}")
     _check("V03_PK_SEQUENTIAL", pk_sequential,
            f"admission_id sequential: {pk_sequential}")
 
-    # V3: No NaT in date columns
+    # V3: Sin NaT en columnas de fecha
     nat_total = int(df["Date of Admission"].isna().sum() + df["Discharge Date"].isna().sum())
     _check("V04_DATES_COMPLETE", nat_total == 0,
            f"{nat_total} NaT values in date columns")
 
-    # V4: Discharge >= Admission for all rows
+    # V4: Discharge >= Date of Admission para todas las filas
     invalid_dates = int((df["Discharge Date"] < df["Date of Admission"]).sum())
     _check("V05_DATE_COHERENCE", invalid_dates == 0,
            f"{invalid_dates} rows with discharge < admission")
@@ -459,12 +459,12 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
     _check("V06_LOS_POSITIVE", bad_los == 0,
            f"{bad_los} rows with stay < 1 day")
 
-    # V6: Age within expected range (13-89 per diagnosis)
+    # V6: Age dentro del rango esperado (13-89 segun diagnostico)
     age_bad = int(((df["Age"] < 0) | (df["Age"] > 120)).sum())
     _check("V07_AGE_RANGE", age_bad == 0,
            f"{age_bad} ages outside 0-120 range")
 
-    # V7: Categorical columns have only known categories
+    # V7: Las columnas categoricas solo tienen categorias conocidas
     expected = {
         "Gender": {"Male", "Female"},
         "Blood Type": {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"},
@@ -482,14 +482,14 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
         _check(f"V08_DOMAIN_{col}", len(extra) == 0,
                f"Unexpected values: {extra}" if extra else "All values in expected domain")
 
-    # V8: Billing rounded to 2 decimals
+    # V8: Facturacion redondeada a 2 decimales
     max_decimals = int(df["Billing Amount"].apply(
         lambda x: len(str(x).split(".")[-1]) if "." in str(x) else 0
     ).max())
     _check("V09_BILLING_PRECISION", max_decimals <= 2,
            f"Max decimal places: {max_decimals}")
 
-    # V9: No leading/trailing spaces in string columns
+    # V9: Sin espacios al inicio/final en columnas de texto
     str_cols = df.select_dtypes(include=["object", "string"]).columns
     space_issues = 0
     for col in str_cols:
@@ -498,21 +498,21 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
     _check("V10_NO_WHITESPACE", space_issues == 0,
            f"{space_issues} values with leading/trailing spaces")
 
-    # V10: Row count within tolerance
+    # V10: Conteo de filas dentro de tolerancia
     _check("V11_ROW_COUNT", len(df) >= 54000,
            f"{len(df):,} rows (expected ~54,966 after dedup)")
 
-    # V11: Name column all Title Case
+    # V11: Columna Name completamente en Title Case
     name_issues = int((df["Name"] != df["Name"].str.title()).sum())
     _check("V12_NAME_TITLE_CASE", name_issues == 0,
            f"{name_issues} names not in Title Case")
 
-    # V12: Hospital no trailing commas
+    # V12: Hospital sin comas al final
     hosp_comma = int(df["Hospital"].str.endswith(",").sum())
     _check("V13_HOSPITAL_NO_COMMA", hosp_comma == 0,
            f"{hosp_comma} hospitals ending with comma")
 
-    # V13: All derived columns present
+    # V13: Todas las columnas derivadas presentes
     derived_cols = [
         "stay_duration_days", "age_group", "is_pediatric", "billing_range",
         "admission_month", "admission_year", "admission_quarter",
@@ -522,14 +522,14 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
     _check("V14_DERIVED_COLS_PRESENT", len(missing_derived) == 0,
            f"Missing: {missing_derived}" if missing_derived else "All derived columns present")
 
-    # V14: No nulls in critical columns
+    # V14: Sin nulos en columnas criticas
     critical = ["admission_id", "Name", "Age", "Gender", "Date of Admission",
                 "Discharge Date", "Billing Amount", "stay_duration_days"]
     critical_nulls = {c: int(df[c].isna().sum()) for c in critical if df[c].isna().any()}
     _check("V15_CRITICAL_NULLS", len(critical_nulls) == 0,
            f"Nulls in critical columns: {critical_nulls}" if critical_nulls else "No nulls in critical columns")
 
-    # V15: Correct dtypes
+    # V15: Tipos de datos correctos
     expected_types = {
         "admission_id": "int",
         "Age": "int",
@@ -550,10 +550,10 @@ def run_validations(df: pd.DataFrame) -> list[dict]:
 
 
 # ===================================================================
-# REPORTING
+# REPORTES
 # ===================================================================
 
-# --- Transformation rules table ---
+# --- Tabla de reglas de transformacion ---
 TRANSFORMATION_RULES = [
     {
         "rule_id": "R1",
@@ -649,10 +649,10 @@ TRANSFORMATION_RULES = [
 
 
 def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.DataFrame:
-    """Compare key quality metrics before and after transformation."""
+    """Compara metricas clave de calidad antes y despues de la transformacion."""
     rows = []
 
-    # Row count
+    # Conteo de filas
     rows.append({
         "metric": "Total rows",
         "before": len(df_raw),
@@ -660,7 +660,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": len(df_clean) - len(df_raw),
     })
 
-    # Exact duplicates
+    # Duplicados exactos
     rows.append({
         "metric": "Exact duplicates",
         "before": int(df_raw.duplicated().sum()),
@@ -670,7 +670,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": None,
     })
 
-    # Column count
+    # Conteo de columnas
     rows.append({
         "metric": "Total columns",
         "before": len(df_raw.columns),
@@ -678,7 +678,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": len(df_clean.columns) - len(df_raw.columns),
     })
 
-    # Name not Title Case
+    # Name no esta en Title Case
     raw_ntc = int((df_raw["Name"] != df_raw["Name"].str.title()).sum())
     clean_ntc = int((df_clean["Name"] != df_clean["Name"].str.title()).sum())
     rows.append({
@@ -688,7 +688,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": clean_ntc - raw_ntc,
     })
 
-    # Hospital with trailing commas
+    # Hospital con comas al final
     raw_hc = int(df_raw["Hospital"].str.endswith(",").sum())
     clean_hc = int(df_clean["Hospital"].str.endswith(",").sum())
     rows.append({
@@ -698,23 +698,23 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": clean_hc - raw_hc,
     })
 
-    # Negative billing
+    # Facturacion negativa
     rows.append({
         "metric": "Negative billing amounts",
         "before": int((df_raw["Billing Amount"] < 0).sum()),
         "after": int((df_clean["Billing Amount"] < 0).sum()),
-        "delta": 0,  # preserved intentionally
+        "delta": 0,  # conservado intencionalmente
     })
 
-    # Low billing
+    # Facturacion baja
     rows.append({
         "metric": "Low billing (|<$100|)",
         "before": int((df_raw["Billing Amount"].abs() < 100).sum()),
         "after": int((df_clean["Billing Amount"].abs() < 100).sum()),
-        "delta": 0,  # preserved intentionally
+        "delta": 0,  # conservado intencionalmente
     })
 
-    # Max billing decimals
+    # Maximo de decimales en facturacion
     def _max_dec(s: pd.Series) -> int:
         return int(s.apply(
             lambda x: len(str(x).split(".")[-1]) if "." in str(x) else 0
@@ -726,7 +726,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
         "delta": None,
     })
 
-    # Doctor titles mixed in name
+    # Titulos profesionales mezclados en Doctor
     raw_dt = int(df_raw["Doctor"].str.contains(
         r"\s+(?:MD|DVM|PhD)\s*$", flags=re.IGNORECASE, regex=True, na=False
     ).sum())
@@ -744,7 +744,7 @@ def generate_before_after(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -> pd.Da
 
 
 def generate_invalid_records(df: pd.DataFrame) -> pd.DataFrame:
-    """Collect rows with any quality flag for audit."""
+    """Recopila filas con cualquier bandera de calidad para auditoria."""
     mask = pd.Series(False, index=df.index)
 
     if "is_billing_negative" in df.columns:
@@ -756,7 +756,7 @@ def generate_invalid_records(df: pd.DataFrame) -> pd.DataFrame:
 
     invalid = df.loc[mask].copy()
 
-    # Build flag_reason column
+    # Construir columna flag_reason
     reasons = pd.Series("", index=invalid.index, dtype=str)
     if "is_billing_negative" in df.columns:
         reasons = reasons.where(
@@ -775,7 +775,7 @@ def generate_invalid_records(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_derived_dictionary() -> pd.DataFrame:
-    """Document every derived column with its source, logic, and purpose."""
+    """Documenta cada columna derivada con su origen, logica y proposito."""
     rows = [
         {
             "column": "admission_id",
@@ -898,7 +898,7 @@ def write_transformation_report(
     before_after: pd.DataFrame,
     out_dir: Path,
 ) -> None:
-    """Write the full Markdown transformation report."""
+    """Escribe el reporte completo de transformacion en Markdown."""
     lines = [
         "# Transformation Report — Phase 2",
         "",
