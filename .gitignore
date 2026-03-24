@@ -64,3 +64,5 @@ htmlcov/
 *.crt
 secrets/
 credentials/
+dashboard/create_metabase_dashboard.py
+dashboard/metabase_setup.md
